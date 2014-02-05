@@ -1,0 +1,28 @@
+#! /usr/bin/env
+#
+
+Class PausableCounter < LoopingThread
+  attr_reader :count
+  def before_loop
+    @count = 0
+  end
+  def initialize
+    super { @count += 1 }
+  end
+  def after_loop
+    puts "I counted up to #{@count} before I was cruelly stopped."
+  end
+end
+counter = PausableCounter.new
+sleep 2
+counter.paused = true
+counter.count                                          
+sleep 2
+counter.count                                           
+counter.paused = false
+sleep 2
+counter.stop
+
+counter.count                                            
+
+
