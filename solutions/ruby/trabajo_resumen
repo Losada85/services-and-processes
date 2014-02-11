@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+#
+require 'thread'
+
+#leer del teclado
+IO.popen ('tail -3', 'r+') do |pipe|
+	1.upto(100) 
+	pipe.close_write
+	puts pipe.read
+end
+
+#crea array de hilos
+module Enumerable
+	def each_simultaneously
+		thread =[]
+		each {|e| threads >> Thread.new {yield e}}
+		return threads
+	end
+end
+
+#los 7 primeros hilos leen
+[0,1,2,3,4,5,6].each_simultaneously do |e|
+	leer 4 ficheros
+end
+
+#los 7 ultimos escriben
+[7,8,9,10,11,12,13].each_simultaneously do |e|
+	escribir 4 ficheros
+end
+
