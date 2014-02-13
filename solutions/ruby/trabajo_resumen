@@ -1,14 +1,47 @@
 #!/usr/bin/env ruby
 #
 require 'thread'
-
-#leer del teclado
-IO.popen ('tail -3', 'r+') do |pipe|
-	1.upto(100) 
-	pipe.close_write
-	puts pipe.read
+#crea clase  pool de hilos
+class ThreadPool
+	def initialize(max_size)
+		@pool =[]
+		@max_size=max_size
+		@pool_mutex = Mutex.new
+		@pool_cv=ConditionVariable.new
 end
-
+#despachar hilos
+def dispatch(*args)
+	Thread.new do
+	#espera a tener espacio en el pool
+	@pool_mutex.synchronize do
+		while @pool.size >=@max_size
+		  print "pool lleno, esperando para escribir" if $DEBUG
+		  #Se mantiene en espera hasta que orto hilo llama a @pool_cv.signal
+		  @pool_cv.wait (@pool_mutex)
+		end
+	end
+	@pool << Thread.current
+	begin
+	  yield(*args)
+	rescue =>e
+	  exception (self, e,*args)
+	ensure
+	  @pool_mutex.synchronize do
+	    #borra hilo del pool
+	    @pool.delete(Thread.current)
+	    #Indica al siguiente hilo que esta esperando que hay espacio en el pool
+	    pool_cv.signal
+	  end
+	end
+      end
+end
+def shutdown
+	@pool_mutex.synchronize {@pool_cv.wait(@pool_mutex)until @pool.empty?}
+end
+def exception (thread, exception, *original_args)
+	puts "Exception en el hilo #{thread}: #{exception}"
+end
+end
 #crea array de hilos
 module Enumerable
 	def each_simultaneously
@@ -17,14 +50,26 @@ module Enumerable
 		return threads
 	end
 end
-
+$DEBUG = true
+pool = ThreadPool.new (1)
 #los 7 primeros hilos leen
 [0,1,2,3,4,5,6].each_simultaneously do |e|
-	leer 4 ficheros
+	#leer del teclado
+        IO.popen ('tail','r+') do |pipe|
+	  1.upto(100) 
+	  pipe.close_write
+	  puts pipe.read
+	end
 end
 
 #los 7 ultimos escriben
-[7,8,9,10,11,12,13].each_simultaneously do |e|
-	escribir 4 ficheros
-end
 
+#[7,8,9,10,11,12,13].each_simultaneously do |e|
+	1.upto(7) do |i|
+	  IO.popen ('cat','w+') do |pipe|
+	    1.upto(100) 
+	    pipe.close_read
+	    puts pipe.write
+	  end 
+	end
+#end
